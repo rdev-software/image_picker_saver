@@ -6,7 +6,9 @@ package io.flutter.plugins.imagepickersaver;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.media.MediaScannerConnection;
@@ -288,6 +290,16 @@ public class ImagePickerDelegate
         this.saveImageToGalleryResult();
     }
 
+    private String getAppLabel(Context context) {
+        PackageManager packageManager = context.getPackageManager();
+        ApplicationInfo applicationInfo = null;
+        try {
+            applicationInfo = packageManager.getApplicationInfo(context.getApplicationInfo().packageName, 0);
+        } catch (final PackageManager.NameNotFoundException e) {
+        }
+        return (String) (applicationInfo != null ? packageManager.getApplicationLabel(applicationInfo) : "Unknown");
+    }
+
     private void saveImageToGalleryResult() throws IOException {
 
         byte[] fileData = methodCall.argument("fileData");
@@ -296,7 +308,7 @@ public class ImagePickerDelegate
 
         String desctiption = methodCall.argument("description") == null ? "123" : methodCall.argument("description").toString();
 
-        String filePath = CapturePhotoUtils.insertImage(activity.getContentResolver(), fileData, title, desctiption);
+        String filePath = CapturePhotoUtils.insertImage(getAppLabel(activity), activity.getContentResolver(), fileData, title, desctiption);
 
         finishWithSuccess(filePath,pendingResult);
     }

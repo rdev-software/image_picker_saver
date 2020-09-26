@@ -1,17 +1,22 @@
 package io.flutter.plugins.imagepickersaver;
 
+import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.provider.MediaStore.Images;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +38,7 @@ public class CapturePhotoUtils {
      *
      * @see android.provider.MediaStore.Images.Media#insertImage(ContentResolver, Bitmap, String, String)
      */
-    public static final String insertImage(ContentResolver cr,
+    public static final String insertImage(String appName, ContentResolver cr,
                                            byte[] source,
                                            String title,
                                            String description) throws IOException {
@@ -41,7 +46,9 @@ public class CapturePhotoUtils {
         InputStream is = new BufferedInputStream(new ByteArrayInputStream(source));
         String mimeType = URLConnection.guessContentTypeFromStream(is);
 
+        String relativeLocation = "DCIM/" + appName;
         ContentValues values = new ContentValues();
+
         values.put(Images.Media.TITLE, title);
         values.put(Images.Media.DISPLAY_NAME, title);
         values.put(Images.Media.DESCRIPTION, description);
@@ -49,7 +56,10 @@ public class CapturePhotoUtils {
         // Add the date meta data to ensure the image is added at the front of the gallery
         values.put(Images.Media.DATE_ADDED, System.currentTimeMillis());
         values.put(Images.Media.DATE_TAKEN, System.currentTimeMillis());
-
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { //this one
+            values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativeLocation);
+        }
         Uri url = null;
         String stringUrl = "";    /* value to be returned */
 
@@ -64,14 +74,16 @@ public class CapturePhotoUtils {
                 } finally {
                     imageOut.close();
                 }
-
-                long id = ContentUris.parseId(url);
-                // Wait until MINI_KIND thumbnail is generated.
-                Bitmap miniThumb = Images.Thumbnails.getThumbnail(cr, id, Images.Thumbnails.MINI_KIND, null);
-                // This is for backward compatibility.
-                storeThumbnail(cr, miniThumb, id, 50F, 50F, Images.Thumbnails.MICRO_KIND);
-
-
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.put(MediaStore.MediaColumns.IS_PENDING, false);
+                    cr.update(url, values, null, null);
+                } else {
+                    long id = ContentUris.parseId(url);
+                    //Wait until MINI_KIND thumbnail is generated.
+                    Bitmap miniThumb = Images.Thumbnails.getThumbnail(cr, id, Images.Thumbnails.MINI_KIND, null);
+                    // This is for backward compatibility.
+                    storeThumbnail(cr, miniThumb, id, 50F, 50F, Images.Thumbnails.MICRO_KIND);
+                }
             } else {
                 cr.delete(url, null, null);
                 url = null;
@@ -86,7 +98,6 @@ public class CapturePhotoUtils {
         if (url != null) {
             stringUrl = getFilePathFromContentUri(url, cr);
         }
-
 
         return stringUrl;
     }

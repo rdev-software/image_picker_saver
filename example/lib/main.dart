@@ -43,36 +43,54 @@ class _MyHomePageState extends State<MyHomePage> {
   VideoPlayerController _controller;
   VoidCallback listener;
 
-  void _onImageSaveButtonPressed() async {
-    print("_onImageSaveButtonPressed");
+  void _onImageDownloadButtonPressed() async {
+    print("_onImageDownloadButtonPressed");
     var response = await http
         .get('http://upload.art.ifeng.com/2017/0425/1493105660290.jpg');
 
     debugPrint(response.statusCode.toString());
 
     var filePath = await ImagePickerSaver.saveFile(
-        fileData: response.bodyBytes, title: 'ImagePickerPicture',
+        fileData: response.bodyBytes,
+        title: 'ImagePickerPicture',
         description: 'example of image picker saver');
 
-    var savedFile= File.fromUri(Uri.file(filePath));
+    var savedFile = File.fromUri(Uri.file(filePath));
     setState(() {
       _imageFile = Future<File>.sync(() => savedFile);
     });
   }
+
+  void _onImageSaveButtonPressed() async {
+    print("_onImageSaveButtonPressed");
+    if (_imageFile != null) {
+      var file = await _imageFile;
+      var filePath =
+          await ImagePickerSaver.saveFile(fileData: file.readAsBytesSync());
+      if (filePath != null && filePath.isNotEmpty) {
+        var savedFile = File.fromUri(Uri.file(filePath));
+        setState(() {
+          _imageFile = Future<File>.sync(() => savedFile);
+        });
+      }
+    }
+  }
+
   void _takeScreenShot() async {
     RenderRepaintBoundary boundary =
-    globalKey.currentContext.findRenderObject();
+        globalKey.currentContext.findRenderObject();
     ui.Image image = await boundary.toImage();
 
     ByteData byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     Uint8List pngBytes = byteData.buffer.asUint8List();
     print(pngBytes);
-    var filePath =await ImagePickerSaver.saveFile(fileData: pngBytes);
-    var savedFile= File.fromUri(Uri.file(filePath));
+    var filePath = await ImagePickerSaver.saveFile(fileData: pngBytes);
+    var savedFile = File.fromUri(Uri.file(filePath));
     setState(() {
       _imageFile = Future<File>.sync(() => savedFile);
     });
   }
+
   void _onImageButtonPressed(ImageSource source) {
     setState(() {
       if (_controller != null) {
@@ -230,11 +248,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: FloatingActionButton(
                   backgroundColor: Colors.lightGreen,
                   onPressed: () {
-                    _onImageSaveButtonPressed();
+                    _onImageDownloadButtonPressed();
                   },
                   heroTag: 'save image from url',
                   tooltip: 'save image from url',
-                  child: const Icon(Icons.save),
+                  child: const Icon(Icons.download_outlined),
                 ),
               ),
               Padding(
@@ -247,6 +265,18 @@ class _MyHomePageState extends State<MyHomePage> {
                   heroTag: 'ScreenShot',
                   tooltip: 'ScreenShot',
                   child: const Icon(Icons.mobile_screen_share),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: FloatingActionButton(
+                  backgroundColor: Colors.yellow,
+                  onPressed: () {
+                    _onImageSaveButtonPressed();
+                  },
+                  heroTag: 'save image',
+                  tooltip: 'save image',
+                  child: const Icon(Icons.save),
                 ),
               ),
             ],
